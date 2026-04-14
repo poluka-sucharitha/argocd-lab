@@ -1,0 +1,74 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: nginx-app
+  namespace: argocd
+  # This finalizer means: when you delete this Application,
+  # also delete all resources it created in the cluster
+  # IMPORTANT in production — prevents orphaned resources
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+
+  # Labels for organizing apps in ArgoCD UI
+  labels:
+    team: platform
+    env: dev
+    app: nginx
+
+spec:
+  # Which AppProject this Application belongs to
+  # It MUST follow that project's sourceRepos + destinations rules
+  project: platform
+
+  source:
+    # Your GitOps repo URL
+    repoURL: https://github.com/<your-username>/argocd-lab.git
+
+    # Branch, tag, or commit SHA to track
+    # In production: pin to a tag for prod, use branch for dev
+    targetRevision: main
+
+    # Path inside the repo where K8s manifests are
+    path: manifests/nginx
+
+  destination:
+    # For same-cluster deployment (most common)
+    server: https://kubernetes.default.svc
+    namespace: nginx-dev
+
+  syncPolicy:
+    automated:
+      # prune: true means — if you DELETE a file from Git,
+      # ArgoCD will also DELETE that resource from the cluster
+      # Without this: deleted files in Git leave resources running forever
+      prune: true
+
+      # selfHeal: true means — if someone manually changes the cluster
+      # (kubectl edit, kubectl scale, etc.), ArgoCD will REVERT it back to Git
+      # This is the core of GitOps enforcement
+      selfHeal: true
+
+      # allowEmpty: false prevents ArgoCD from wiping everything
+      # if the path accidentally becomes empty in Git
+      allowEmpty: false
+
+    syncOptions:
+      # Creates namespace if it doesn't exist
+      - CreateNamespace=true
+
+      # Uses server-side apply instead of kubectl apply
+      # Better for large manifests and CRDs in production
+      - ServerSideApply=false
+
+      # If any resource fails to sync, stop — don't apply rest
+      # Prevents partial deployments
+      - Validate=true
+
+    # Retry logic — important for production
+    # If sync fails (e.g. image pull error), retry with backoff
+    retry:
+      limit: 3
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

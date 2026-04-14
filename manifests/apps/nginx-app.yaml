@@ -22,7 +22,7 @@ spec:
 
   source:
     # Your GitOps repo URL
-    repoURL: https://github.com/<your-username>/argocd-lab.git
+    repoURL: https://github.com/poluka-sucharitha/argocd-lab.git
 
     # Branch, tag, or commit SHA to track
     # In production: pin to a tag for prod, use branch for dev

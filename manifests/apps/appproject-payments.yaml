@@ -1,0 +1,58 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: platform
+  namespace: argocd
+  # finalizer prevents accidental deletion when apps are using it
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  description: Platform team applications - dev and staging workloads
+
+  # ONLY these Git repos can be used as source
+  # In production: replace with your actual org repos
+  sourceRepos:
+    - https://github.com/poluka-sucharitha/argocd-lab.git
+    - https://github.com/poluka-sucharitha/*    # allow all repos in your org
+
+  # ONLY these cluster+namespace combinations are allowed as destinations
+  destinations:
+    - namespace: nginx-dev
+      server: https://kubernetes.default.svc    # same cluster where ArgoCD runs
+    - namespace: nginx-staging
+      server: https://kubernetes.default.svc
+
+  # Cluster-level resources this project is allowed to manage
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace                            # allow creating namespaces
+
+  # Namespace-level resources this project is allowed to manage
+  # Everything NOT listed here is BLOCKED
+  namespaceResourceWhitelist:
+    - group: ""
+      kind: ConfigMap
+    - group: ""
+      kind: Secret
+    - group: ""
+      kind: Service
+    - group: ""
+      kind: ServiceAccount
+    - group: "apps"
+      kind: Deployment
+    - group: "apps"
+      kind: ReplicaSet
+    - group: "networking.k8s.io"
+      kind: Ingress
+    - group: "autoscaling"
+      kind: HorizontalPodAutoscaler
+
+  # Optional: project-level roles (for team access control)
+  roles:
+    - name: developer
+      description: Platform team developers
+      policies:
+        - p, proj:platform:developer, applications, get, platform/*, allow
+        - p, proj:platform:developer, applications, sync, platform/*, allow
+      groups:
+        - platform-developers         # Entra/Okta group name or ID
